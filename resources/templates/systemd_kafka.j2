@@ -1,0 +1,13 @@
+[Unit]
+Description=Apache Kafka server
+Documentation=http://kafka.apache.org/documentation.html
+Requires=zookeeper.service
+
+[Service]
+Type=simple
+ExecStart={{ kafka_home }}/bin/kafka-server-start.sh {{ kafka_home }}/config/server.properties
+ExecStop={{ kafka_home }}/bin/kafka-server-stop.sh
+Environment=JMX_PORT=1099
+
+[Install]
+WantedBy=multi-user.target

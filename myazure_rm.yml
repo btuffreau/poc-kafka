@@ -1,0 +1,24 @@
+plugin: azure_rm
+include_vm_resource_groups:
+        - kafka_lab
+auth_source: auto
+plain_host_names: yes
+keyed_groups:
+        #- key: tags.environment
+        #  prefix: tag
+        - prefix: os
+          key: os_disk.operating_system_type
+
+        # Generate vm_size_(vm_size)
+        #- prefix: vm_size
+        #  key: virtual_machine_size
+
+conditional_groups:
+        # if the VM has a specific tag
+        #kafka: "'role' in (tags|list)"
+        # if the VM has a specific key pair
+        broker: "'kafka' in tags.role"
+
+
+hostvar_expressions:
+        zkid: (private_ipv4_addresses[0].split('.')[-1][-2:])

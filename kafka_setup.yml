@@ -1,0 +1,95 @@
+---
+- hosts: all
+  become: True
+  vars:
+        kafka_user: kafka
+        kafka_source: "https://apache.mirrors.tworzy.net/kafka/2.5.0/kafka_2.12-2.5.0.tgz"
+        package_req:
+                - wget
+                - net-tools
+                - openjdk-8-jdk
+        zookeeper_home:  "/home/{{ kafka_user }}/zookeeper"
+        kafka_home: "/home/{{ kafka_user }}/kafka"
+  tasks:
+        - name: create user
+          user:
+            name: "{{ kafka_user }}" 
+
+        - name: install packages
+          package:
+                  state: present
+                  name: "{{ item }}"
+          with_items:
+                  - "{{ package_req }}" 
+
+        - name: create directory structure
+          become_user: "{{ kafka_user }}"
+          file: 
+            path: "{{ item }}"
+            state: directory
+          with_items:
+                  - "{{ zookeeper_home }}"
+                  - "{{ kafka_home }}"
+
+
+        - name: Download and deploy kafka binary
+          become_user: "{{ kafka_user }}"
+          unarchive:
+                  src: "{{ kafka_source }}"
+                  dest: "{{ kafka_home }}"
+                  extra_opts: ["--strip-components=1"]
+                  remote_src: yes
+
+### Configuration
+
+        - name: Prepare Configuration
+          set_fact:
+                   brokerid: "{{ hostvars[inventory_hostname].private_ipv4_addresses[0].split('.')[-1][-2:] }}"
+          tags: zookeeper,kafka,test
+
+        - name:  Configure Zookeeper
+          template:
+                  lstrip_blocks: yes
+                  src: resources/templates/zookeeper.j2
+                  dest: "{{ kafka_home }}/config/zookeeper.properties"
+          tags: zookeeper
+
+        - name: Configure Kafka
+          template: 
+                  lstrip_blocks: yes
+                  src: resources/templates/kafka.j2
+                  dest: "{{ kafka_home }}/config/server.properties"
+          tags: kafka,test
+
+        - name: Zookeeper Id
+          copy:
+                  content: "{{ hostvars[inventory_hostname]['brokerid'] }}"
+                  dest: "{{ zookeeper_home }}/myid"
+                  owner: "{{ kafka_user }}"
+                  group: "{{ kafka_user }}"
+          tags: zookeeper
+
+        - name: SystemD setup
+          template:
+                  src: "resources/templates/systemd_{{ item }}.j2"
+                  dest: "/etc/systemd/system/{{ item }}.service"
+          with_items:
+                  - "zookeeper"
+                  - "kafka"
+          tags: zookeeper,kafka,systemd
+
+        - name: Zookeeper start
+          systemd:
+                  enabled: yes
+                  name: zookeeper
+                  daemon_reload: yes
+                  state: started
+          tags: zookeeper, kafka, systemd
+
+        - name: Kafka start
+          systemd:
+                  enabled: yes
+                  name: kafka
+                  daemon_reload: yes
+                  state: started
+          tags: kafka, systemd                           

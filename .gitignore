@@ -1,0 +1,5 @@
+.terraform
+*.deb
+*.rpm
+*.tvars
+*.tfstate*
