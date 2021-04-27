@@ -3,3 +3,4 @@
 *.rpm
 *.tvars
 *.tfstate*
+*.sh
